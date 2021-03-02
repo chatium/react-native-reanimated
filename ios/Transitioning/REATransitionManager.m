@@ -9,8 +9,7 @@
 @end
 
 @implementation REATransitionManager {
-  REATransition *_pendingTransition;
-  UIView *_pendingTransitionRoot;
+  NSMutableArray *_pendingTransitions;
   RCTUIManager *_uiManager;
 }
 
@@ -25,20 +24,24 @@
 - (void)beginTransition:(REATransition *)transition forView:(UIView *)view
 {
   RCTAssertMainQueue();
-  if (_pendingTransition != nil) {
-    return;
-  }
-  _pendingTransition = transition;
-  _pendingTransitionRoot = view;
+    if (_pendingTransitions == nil) {
+        _pendingTransitions = [NSMutableArray new];
+    }
+  [_pendingTransitions addObject:@{@"transition": transition, @"view": view}];
   [transition startCaptureInRoot:view];
 }
 
 - (void)uiManagerWillPerformMounting:(RCTUIManager *)manager
 {
   [manager addUIBlock:^(RCTUIManager *uiManager, NSDictionary<NSNumber *,UIView *> *viewRegistry) {
-    [_pendingTransition playInRoot:_pendingTransitionRoot];
-    _pendingTransitionRoot = nil;
-    _pendingTransition = nil;
+    if (_pendingTransitions != nil) {
+        for (NSDictionary *pending in _pendingTransitions) {
+            REATransition *transition = [pending objectForKey:@"transition"];
+            UIView *view = [pending objectForKey:@"view"];
+            [transition playInRoot:view];
+        }
+        [_pendingTransitions removeAllObjects];
+    }
   }];
 }
 
